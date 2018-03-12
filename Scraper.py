@@ -74,7 +74,7 @@ class Scraper():
         Args:
             url (str): URL to scrape data from.
         """
-        rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-portal-scraper\Data.xlsx')
+        rb = xlrd.open_workbook(r'C:\Users\Илья\PycharmProjects\odds-to-excel\Data.xlsx')
         wb = copy(rb)
         ws = wb.add_sheet('A Test Sheet')
         schetchik = 0
