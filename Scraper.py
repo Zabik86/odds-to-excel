@@ -78,7 +78,8 @@ class Scraper():
         Args:
             url (str): URL to scrape data from.
         """
-        rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        # rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        rb = xlrd.open_workbook(r'C:\Users\Илья\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
         wb = copy(rb)
         ws = wb.get_sheet(0)
         schetchik = 0
@@ -117,6 +118,11 @@ class Scraper():
                 tournament_tbl_soup_match_ttlg = BeautifulSoup(tournament_tbl_html_match_ttlg, "html.parser")
                 ttlg_odds = self.get_odds_ttlg(tournament_tbl_soup_match_ttlg.find_all(class_="table-container")[10].find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
 
+                tournament_tbl_match_res = self.browser.find_element_by_id("col-content")
+                tournament_tbl_html_match_res = tournament_tbl_match_res.get_attribute("innerHTML")
+                tournament_tbl_soup_match_res = BeautifulSoup(tournament_tbl_html_match_res, "html.parser")
+                result_first_period = self.get_result(tournament_tbl_soup_match_res.find(class_="result"))
+
                 #this_match = SoccerMatch()
                 game_datetime_str = current_date_str + " " + self.get_time(row)
                 #this_match.set_start(game_datetime_str)
@@ -132,14 +138,16 @@ class Scraper():
                 ws.write(schetchik + start_row, 3, participants[1])
                 ws.write(schetchik + start_row, 4, scores[0])
                 ws.write(schetchik + start_row, 5, scores[1])
-                ws.write(schetchik + start_row, 5, mw_odds[0])
-                ws.write(schetchik + start_row, 5, mw_odds[1])
-                ws.write(schetchik + start_row, 5, mw_odds[2])
-                ws.write(schetchik + start_row, 5, 2.5)
-                ws.write(schetchik + start_row, 5, ttlg_odds[0])
-                ws.write(schetchik + start_row, 5, ttlg_odds[1])
+                ws.write(schetchik + start_row, 6, result_first_period[0])
+                ws.write(schetchik + start_row, 7, result_first_period[1])
+                ws.write(schetchik + start_row, 8, mw_odds[0])
+                ws.write(schetchik + start_row, 9, mw_odds[1])
+                ws.write(schetchik + start_row, 10, mw_odds[2])
+                ws.write(schetchik + start_row, 11, 2.5)
+                ws.write(schetchik + start_row, 12, ttlg_odds[0])
+                ws.write(schetchik + start_row, 13, ttlg_odds[1])
                 schetchik += 1
-        wb.save("Data1.xls")
+                wb.save("Data1.xls")
 
 
     def is_soccer_match_or_date(self, tag):
@@ -278,6 +286,13 @@ class Scraper():
         for cell in odds_cells:
             odds.append(cell.text)
         return odds
+
+    def get_result(self, tag):
+        result = []
+        res = tag.text
+        result.append(res[18])
+        result.append(res[20])
+        return result
 
     def get_odds_ttlg(self, tag):
         odds = []
