@@ -61,14 +61,71 @@ class Scraper():
 
         for url in self.league["urls"]:
             self.scrape_url(url)
+            self.scrape_url_for_next_matches(url)
         self.browser.close()
 
         if do_verbose_output is True:
             print("Done scraping this league.")
 
-    def scape_match_url(self, ws, match_url):
-        self.browser.get(match_url)
-        a = 1
+    def scrape_url_for_next_matches(self, url):
+        rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        # rb = xlrd.open_workbook(r'C:\Users\Илья\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        wb = copy(rb)
+        ws = wb.get_sheet(0)
+        start_row = 3
+        schetchik2 = 0
+
+        next_matches_url = url[0: -8]
+        self.browser.get(next_matches_url)
+        tournament_tbl_next_matches = self.browser.find_element_by_id("tournamentTable")
+        tournament_tbl_html_next_matches = tournament_tbl_next_matches.get_attribute("innerHTML")
+        tournament_tbl_soup_next_matches = BeautifulSoup(tournament_tbl_html_next_matches, "html.parser")
+        significant_rows_next_matches = tournament_tbl_soup_next_matches(self.is_soccer_match_or_date_for_next_matches)
+        championat_name = tournament_tbl_soup_next_matches.find(class_="first2 tl").contents[2].text + " " + \
+                          tournament_tbl_soup_next_matches.find(class_="first2 tl").contents[4].text
+        current_date_str_for_next_matches = None
+        for row_next in significant_rows_next_matches:
+            if self.is_date_next_match(row_next) is True:
+                current_date_str_for_next_matches = self.get_date(row_next)
+            elif self.is_date_string_supported(current_date_str_for_next_matches) == False:
+                # not presently supported
+                continue
+            else:
+                game_datetime_str_next = current_date_str_for_next_matches
+                participants_next = self.get_participants(row_next)
+
+                match_url_next = self.get_match_url_next(row_next)
+                match_url_mw_next = 'http://www.oddsportal.com' + match_url_next + '#1X2;2'
+                self.browser.get(match_url_mw_next)
+                tournament_tbl_match_next = self.browser.find_element_by_id("odds-data-table")
+                tournament_tbl_html_match_next = tournament_tbl_match_next.get_attribute("innerHTML")
+                tournament_tbl_soup_match_next = BeautifulSoup(tournament_tbl_html_match_next, "html.parser")
+                mw_odds_next = self.get_odds_mw(tournament_tbl_soup_match_next.find(class_="aver"))
+
+                match_url_ttlg_next = 'http://www.oddsportal.com' + match_url_next + '#over-under;2'
+                self.browser.get(match_url_ttlg_next)
+                tournament_tbl_match_ttlg_next = self.browser.find_element_by_id("odds-data-table")
+                tournament_tbl_html_match_ttlg_next = tournament_tbl_match_ttlg_next.get_attribute("innerHTML")
+                tournament_tbl_soup_match_ttlg_next = BeautifulSoup(tournament_tbl_html_match_ttlg_next, "html.parser")
+                total_strings_next = tournament_tbl_soup_match_ttlg_next.find_all(class_="table-container")
+
+                for string in total_strings_next:
+                    ksdjfh = string.contents[0].contents[0].string
+                    if string.contents[0].contents[0].string == 'Over/Under +2.5 ':
+                        ttlg_odds_next = self.get_odds_ttlg(
+                            string.find_all(class_={"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
+
+                ws.write(schetchik2 + start_row, 20, game_datetime_str_next)
+                ws.write(schetchik2 + start_row, 21, participants_next[0])
+                ws.write(schetchik2 + start_row, 22, participants_next[1])
+                ws.write(schetchik2 + start_row, 25, mw_odds_next[0])
+                ws.write(schetchik2 + start_row, 26, mw_odds_next[1])
+                ws.write(schetchik2 + start_row, 27, mw_odds_next[2])
+                ws.write(schetchik2 + start_row, 28, 2.5)
+                ws.write(schetchik2 + start_row, 29, ttlg_odds_next[0])
+                ws.write(schetchik2 + start_row, 30, ttlg_odds_next[1])
+                schetchik2 += 1
+                wb.save(championat_name + ".xls")
 
     def scrape_url(self, url):
         """
@@ -78,18 +135,21 @@ class Scraper():
         Args:
             url (str): URL to scrape data from.
         """
-        # rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
-        rb = xlrd.open_workbook(r'C:\Users\Илья\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
+        # rb = xlrd.open_workbook(r'C:\Users\Илья\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
         wb = copy(rb)
         ws = wb.get_sheet(0)
+        start_row = 3
         schetchik = 0
+
         self.browser.get(url)
         tournament_tbl = self.browser.find_element_by_id("tournamentTable")
         tournament_tbl_html = tournament_tbl.get_attribute("innerHTML")
         tournament_tbl_soup = BeautifulSoup(tournament_tbl_html, "html.parser")
         significant_rows = tournament_tbl_soup(self.is_soccer_match_or_date)
+        championat_name = tournament_tbl_soup.find(class_="first2 tl").contents[2].text + " " + tournament_tbl_soup.find(class_="first2 tl").contents[4].text
         current_date_str = None
-        start_row = 3
+
         for row in significant_rows:
             if self.is_date(row) is True:
                 current_date_str = self.get_date(row)
@@ -100,7 +160,6 @@ class Scraper():
                 # is a soccer match
                 participants = self.get_participants(row)
                 scores = self.get_scores(row)
-                game_datetime_str = current_date_str + " " + self.get_time(row)
 
                 match_url = self.get_match_url(row)
                 match_url_mw = 'http://www.oddsportal.com' + match_url + '#1X2;2'
@@ -109,29 +168,25 @@ class Scraper():
                 tournament_tbl_html_match = tournament_tbl_match.get_attribute("innerHTML")
                 tournament_tbl_soup_match = BeautifulSoup(tournament_tbl_html_match, "html.parser")
                 mw_odds = self.get_odds_mw(tournament_tbl_soup_match.find(class_="aver"))
-                self.browser.back()
 
                 match_url_ttlg = 'http://www.oddsportal.com' + match_url + '#over-under;2'
                 self.browser.get(match_url_ttlg)
                 tournament_tbl_match_ttlg = self.browser.find_element_by_id("odds-data-table")
                 tournament_tbl_html_match_ttlg = tournament_tbl_match_ttlg.get_attribute("innerHTML")
                 tournament_tbl_soup_match_ttlg = BeautifulSoup(tournament_tbl_html_match_ttlg, "html.parser")
-                ttlg_odds = self.get_odds_ttlg(tournament_tbl_soup_match_ttlg.find_all(class_="table-container")[10].find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
+                total_strings = tournament_tbl_soup_match_ttlg.find_all(class_="table-container")
+
+                for string in total_strings:
+                    ksdjfh = string.contents[0].contents[0].string
+                    if string.contents[0].contents[0].string == 'Over/Under +2.5 ':
+                        ttlg_odds = self.get_odds_ttlg(string.find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
 
                 tournament_tbl_match_res = self.browser.find_element_by_id("col-content")
                 tournament_tbl_html_match_res = tournament_tbl_match_res.get_attribute("innerHTML")
                 tournament_tbl_soup_match_res = BeautifulSoup(tournament_tbl_html_match_res, "html.parser")
                 result_first_period = self.get_result(tournament_tbl_soup_match_res.find(class_="result"))
 
-                #this_match = SoccerMatch()
                 game_datetime_str = current_date_str + " " + self.get_time(row)
-                #this_match.set_start(game_datetime_str)
-                #this_match.set_teams(participants)
-
-                #this_match.set_outcome_from_scores(scores)
-                #odds = self.get_odds(row)
-                #this_match.set_odds(odds)
-                #self.db_manager.add_soccer_match(self.league, url, this_match)
 
                 ws.write(schetchik + start_row, 1, game_datetime_str)
                 ws.write(schetchik + start_row, 2, participants[0])
@@ -147,7 +202,7 @@ class Scraper():
                 ws.write(schetchik + start_row, 12, ttlg_odds[0])
                 ws.write(schetchik + start_row, 13, ttlg_odds[1])
                 schetchik += 1
-                wb.save("Data1.xls")
+                wb.save(championat_name + ".xls")
 
 
     def is_soccer_match_or_date(self, tag):
@@ -170,6 +225,31 @@ class Scraper():
             return True
         return False
 
+    def is_soccer_match_or_date_for_next_matches(self, tag):
+
+        if tag.name != "tr":
+            return False
+        if tag.has_attr("xeid"):
+            return True
+        if "center" in tag["class"] and "nob-border" in tag["class"]:
+            return True
+        return False
+
+    def is_date_next_match(self, tag):
+        """
+        Determine whether a provided HTML tag is a row for a date.
+
+        Args:
+            tag (obj): HTML tag object from BeautifulSoup.
+
+        Returns:
+            (bool)
+        """
+        if tag.has_attr("xeid"):
+            return False
+        else:
+            return "center" in tag["class"] and "nob-border" in tag["class"]
+
     def is_date(self, tag):
         """
         Determine whether a provided HTML tag is a row for a date.
@@ -180,7 +260,6 @@ class Scraper():
         Returns:
             (bool)
         """
-
         return "center" in tag["class"] and "nob-border" in tag["class"]
 
     def is_date_string_supported(self, date_string):
@@ -242,6 +321,10 @@ class Scraper():
         parsed_strings = tag.find(class_="table-participant").contents[0].attrs['href']
         return parsed_strings
 
+    def get_match_url_next(self, tag):
+        parsed_strings = tag.find(class_="table-participant").contents[2].attrs['href']
+        return parsed_strings
+
     def get_participants(self, tag):
         """
         Extract the match's participants from an HTML tag for a soccer match
@@ -284,20 +367,28 @@ class Scraper():
         odds_cells = tag.find_all(class_="right")
         odds = []
         for cell in odds_cells:
-            odds.append(cell.text)
+            if "/" in cell.text:
+                k = cell.text.split('/')
+                odds.append(float(1+(float)(k[0])/(float)(k[1])))
+            else:
+                odds.append(cell.text)
         return odds
 
     def get_result(self, tag):
         result = []
         res = tag.text
-        result.append(res[18])
-        result.append(res[20])
+        result.append((int)(res[18]))
+        result.append((int)(res[20]))
         return result
 
     def get_odds_ttlg(self, tag):
         odds = []
         for cell in tag:
-            odds.append(cell.text)
+            if "/" in cell.text:
+                k = cell.text.split('/')
+                odds.append(float(1+(float)(k[0])/(float)(k[1])))
+            else:
+                odds.append(cell.text)
         if len(odds) == 0:
             odds.append(-1)
             odds.append(-1)
