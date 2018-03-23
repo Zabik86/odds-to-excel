@@ -61,6 +61,7 @@ class Scraper():
             print(output_str)
 
         for url in self.league["urls"]:
+            # os.system(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + " England Premier League" + ".xls" + "\"")
             self.scrape_url_for_next_matches(url)
             self.scrape_url(url)
         self.browser.close()
@@ -88,9 +89,9 @@ class Scraper():
         current_date_str_for_next_matches = None
         for row_next in significant_rows_next_matches:
             if self.is_date_next_match(row_next) is True:
-                if current_date_str_for_next_matches != None and current_date_str_for_next_matches != self.get_date(row_next):
-                    break
-                else:
+                # if current_date_str_for_next_matches != None and current_date_str_for_next_matches != self.get_date(row_next):
+                #     break
+                # else:
                     current_date_str_for_next_matches = self.get_date(row_next)
             elif self.is_date_string_supported(current_date_str_for_next_matches) == False:
                 # not presently supported
@@ -123,6 +124,11 @@ class Scraper():
                         ttlg_odds_next = self.get_odds_ttlg(
                             string.find_all(class_={"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
 
+                if mw_odds_next == None or len(mw_odds_next) == 0:
+                    break
+                elif ttlg_odds_next == None or len(ttlg_odds_next) == 0:
+                    break
+
                 ws.write(schetchik2 + start_row, 20, game_datetime_str_next)
                 ws.write(schetchik2 + start_row, 21, participants_next[0])
                 ws.write(schetchik2 + start_row, 22, participants_next[1])
@@ -148,7 +154,10 @@ class Scraper():
 
 
         self.browser.get(url)
-        tournament_urls_number = (int)(self.browser.find_element_by_id("pagination").text[-4])
+        if self.browser.find_element_by_id("pagination") != None:
+            tournament_urls_number = (int)(self.browser.find_element_by_id("pagination").text[-4])
+        else:
+            tournament_urls_number = 1
         schetchik = 0
         for i in range((tournament_urls_number)):
             if i != 0:
@@ -203,10 +212,16 @@ class Scraper():
                         if string.contents[0].contents[0].string == 'Over/Under +2.5 ':
                             ttlg_odds = self.get_odds_ttlg(string.find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
 
+                    if ttlg_odds[0] == -1 or ttlg_odds[0] == None or ttlg_odds[0] == "":
+                        continue
+
                     tournament_tbl_match_res = self.browser.find_element_by_id("col-content")
                     tournament_tbl_html_match_res = tournament_tbl_match_res.get_attribute("innerHTML")
                     tournament_tbl_soup_match_res = BeautifulSoup(tournament_tbl_html_match_res, "html.parser")
-                    result_first_period = self.get_result(tournament_tbl_soup_match_res.find(class_="result"))
+                    if tournament_tbl_soup_match_res.find(class_="result") != None:
+                        result_first_period = self.get_result(tournament_tbl_soup_match_res.find(class_="result"))
+                    else:
+                        continue
 
                     game_datetime_str = current_date_str + " " + self.get_time(row)
 
@@ -224,10 +239,9 @@ class Scraper():
                     ws.write(schetchik + start_row, 12, ttlg_odds[0])
                     ws.write(schetchik + start_row, 13, ttlg_odds[1])
                     schetchik += 1
-                    file = championat_name + ".xls"
-                    wb.save(file)
-        os.system(
-            r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe  file')
+                    file = r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + championat_name + ".xls" + "\""
+                    wb.save(championat_name + ".xls")
+        os.system(file)
 
 
     def is_soccer_match_or_date(self, tag):
@@ -242,7 +256,7 @@ class Scraper():
             (bool)
         """
 
-        if tag.name != "tr":
+        if tag.name != "tr" or tag.has_attr("class") == False:
             return False
         if "center" in tag["class"] and "nob-border" in tag["class"]:
             return True
@@ -301,10 +315,10 @@ class Scraper():
 
         if date_string is None:
             return False
-        elif "Today" in date_string:
-            return False
-        elif "Yesterday" in date_string:
-            return False
+        # elif "Today" in date_string:
+        #     return False
+        # elif "Yesterday" in date_string:
+        #     return False
         elif "Qualification" in date_string:
             return False
         elif "Promotion" in date_string:
@@ -418,8 +432,14 @@ class Scraper():
     def get_result(self, tag):
         result = []
         res = tag.text
-        result.append((int)(res[18]))
-        result.append((int)(res[20]))
+        # if res == "";
+        #     continue;
+        if len(res) < 18:
+            result.append((int)(res[13]))
+            result.append((int)(res[15]))
+        else:
+            result.append((int)(res[18]))
+            result.append((int)(res[20]))
         return result
 
     def get_odds_ttlg(self, tag):
@@ -429,7 +449,10 @@ class Scraper():
                 k = cell.text.split('/')
                 odds.append(float(1+(float)(k[0])/(float)(k[1])))
             else:
-                odds.append(cell.text)
+                if (cell.text == ""):
+                    odds.append(cell.text)
+                else:
+                    odds.append(cell.text)
         if len(odds) == 0:
             odds.append(-1)
             odds.append(-1)

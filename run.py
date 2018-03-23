@@ -12,7 +12,7 @@ soccer_match_path = "." + sep + "leagues" + sep + "soccer"
 
 initialize_db = True
 
-# os.system(r'C:\Users\seryakov.i\Source\Repos\prematch\src\ConsoleApplication1\bin\Debug\ConsoleApplication1.exe  "England Premier League.xls" "England Premier League1"')
+# os.system(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe  "England Premier League.xls" "England Premier League1"')
 
 for possible_file in listdir(soccer_match_path):
     if isfile(join(soccer_match_path, possible_file)):
