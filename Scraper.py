@@ -13,6 +13,8 @@ from SoccerMatch import SoccerMatch
 import xlwt
 from xlutils.copy import copy
 import os
+import telegram_bot
+
 
 
 class Scraper():
@@ -61,13 +63,40 @@ class Scraper():
             print(output_str)
 
         for url in self.league["urls"]:
-            # os.system(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + " England Premier League" + ".xls" + "\"")
-            self.scrape_url_for_next_matches(url)
-            self.scrape_url(url)
+            # os.system(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + " Egypt Premier League" + ".xls" + "\"")
+            # self.scrape_url_for_next_matches(url) Раскомментировать для футбола
+            self.scrape_url_for_last_loteries(url)
+            # self.scrape_url(url)
         self.browser.close()
 
         if do_verbose_output is True:
             print("Done scraping this league.")
+
+    def scrape_url_for_last_loteries(self, url):
+
+        self.browser.get(url)
+        last_three_event = self.browser.find_element_by_class_name("month")
+        last_three_event_html = last_three_event.get_attribute("innerHTML")
+        last_three_event_soup = last_three_event_html = BeautifulSoup(last_three_event_html, "html.parser")
+        first_event = [0, 0, 0]
+        second_event = [0, 0, 2]
+        third_event = [1, 0, 0]
+        for i in range(1,4):
+            first_event[i-1] = last_three_event_soup.contents[3].contents[1].contents[3].contents[1].contents[1].contents[i].text
+        for i in range(1,4):
+            second_event[i-1] = last_three_event_soup.contents[5].contents[1].contents[3].contents[1].contents[1].contents[i].text
+        for i in range(1,4):
+            third_event[i-1] = last_three_event_soup.contents[7].contents[1].contents[3].contents[1].contents[1].contents[i].text
+
+        result = list(set(first_event) & set(second_event) & set(third_event))
+
+        if len(result) > 0:
+            bot = telegram_bot.BotHandler("655023683:AAHviZSEonc900aNF037fIiUSXc8ES7ljW0")
+            for i in range(len(result)):
+                bot.send_message(telegram_bot.BotHandler.get_last_update(bot)['message']['chat']['id'], "Ставь на отсутствие номера " + str(result[i]) + " в следующем тираже")
+
+
+
 
     def scrape_url_for_next_matches(self, url):
         # rb = xlrd.open_workbook(r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\Болванка для чемпионатов.xlsx')
@@ -139,6 +168,8 @@ class Scraper():
                 ws.write(schetchik2 + start_row, 27, ttlg_odds_next[0])
                 ws.write(schetchik2 + start_row, 28, ttlg_odds_next[1])
                 schetchik2 += 1
+                if "/" in championat_name:
+                    championat_name = championat_name.replace('/','-')
                 wb.save(championat_name + ".xls")
 
     def scrape_url(self, url):
@@ -155,7 +186,11 @@ class Scraper():
 
         self.browser.get(url)
         if self.browser.find_element_by_id("pagination") != None:
-            tournament_urls_number = (int)(self.browser.find_element_by_id("pagination").text[-4])
+            pages = self.browser.find_element_by_id("pagination").text
+            if (((int)(pages[-5]) + 1) == (int)(pages[-4])):
+                tournament_urls_number = (int)(self.browser.find_element_by_id("pagination").text[-4])
+            else:
+                tournament_urls_number = 10*(int)(self.browser.find_element_by_id("pagination").text[-5]) + (int)(self.browser.find_element_by_id("pagination").text[-4])
         else:
             tournament_urls_number = 1
         schetchik = 0
@@ -171,6 +206,9 @@ class Scraper():
             tournament_tbl_soup = BeautifulSoup(tournament_tbl_html, "html.parser")
             significant_rows = tournament_tbl_soup(self.is_soccer_match_or_date)
             championat_name = tournament_tbl_soup.find(class_="first2 tl").contents[2].text + " " + tournament_tbl_soup.find(class_="first2 tl").contents[4].text
+            if "/" in championat_name:
+                championat_name = championat_name.replace('/', '-')
+            file = r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + championat_name + ".xls" + "\""
             current_date_str = None
 
             rb = xlrd.open_workbook(championat_name + '.xls')
@@ -207,13 +245,30 @@ class Scraper():
                     tournament_tbl_soup_match_ttlg = BeautifulSoup(tournament_tbl_html_match_ttlg, "html.parser")
                     total_strings = tournament_tbl_soup_match_ttlg.find_all(class_="table-container")
 
+                    ttlg_odds = []
+                    ttlg_odds.append(-1)
+
                     for string in total_strings:
-                        ksdjfh = string.contents[0].contents[0].string
                         if string.contents[0].contents[0].string == 'Over/Under +2.5 ':
                             ttlg_odds = self.get_odds_ttlg(string.find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
 
                     if ttlg_odds[0] == -1 or ttlg_odds[0] == None or ttlg_odds[0] == "":
                         continue
+
+                    # match_1part_total_url = 'http://www.oddsportal.com' + match_url + '#over-under;3'
+                    # self.browser.get(match_1part_total_url)
+                    # tournament_tbl_match_1part_ttlg = self.browser.find_element_by_id("odds-data-table")
+                    # tournament_tbl_html_match_1part_ttlg = tournament_tbl_match_1part_ttlg.get_attribute("innerHTML")
+                    # tournament_tbl_soup_match_1part_ttlg = BeautifulSoup(tournament_tbl_html_match_1part_ttlg, "html.parser")
+                    # total_1part_strings = tournament_tbl_soup_match_1part_ttlg.find_all(class_="table-container")
+                    #
+                    # for string in total_1part_strings:
+                    #     ksdjfh = string.contents[0].contents[0].string
+                    #     if string.contents[0].contents[0].string == 'Over/Under +0.5 ':
+                    #         ttlg_1part_odds = self.get_odds_ttlg(string.find_all(class_= {"avg chunk-odd nowrp", "avg chunk-odd-uk nowrp"}))
+                    #
+                    # if ttlg_1part_odds[0] == -1 or ttlg_1part_odds[0] == None or ttlg_1part_odds[0] == "":
+                    #     continue
 
                     tournament_tbl_match_res = self.browser.find_element_by_id("col-content")
                     tournament_tbl_html_match_res = tournament_tbl_match_res.get_attribute("innerHTML")
@@ -221,6 +276,9 @@ class Scraper():
                     if tournament_tbl_soup_match_res.find(class_="result") != None:
                         result_first_period = self.get_result(tournament_tbl_soup_match_res.find(class_="result"))
                     else:
+                        continue
+
+                    if result_first_period[0] == "":
                         continue
 
                     game_datetime_str = current_date_str + " " + self.get_time(row)
@@ -239,7 +297,6 @@ class Scraper():
                     ws.write(schetchik + start_row, 12, ttlg_odds[0])
                     ws.write(schetchik + start_row, 13, ttlg_odds[1])
                     schetchik += 1
-                    file = r'C:\Users\seryakov.i\PycharmProjects\odds-to-excel\prem\ConsoleApplication1.exe ' + "\"" + championat_name + ".xls" + "\""
                     wb.save(championat_name + ".xls")
         os.system(file)
 
@@ -344,7 +401,11 @@ class Scraper():
         return this_date
 
     def get_time_next(self, tag):
-        return tag.find(class_="table-time").string
+        res = tag.find(class_="table-time").string
+        if type(res) is str:
+            return res
+        else:
+            return "Now"
 
     def get_time(self, tag):
         """
@@ -434,12 +495,43 @@ class Scraper():
         res = tag.text
         # if res == "";
         #     continue;
-        if len(res) < 18:
-            result.append((int)(res[13]))
-            result.append((int)(res[15]))
+        if "(" not in res and ":" not in res:
+            result.append('')
         else:
-            result.append((int)(res[18]))
-            result.append((int)(res[20]))
+            firstScore = 0;
+            secondScore = 0;
+            numberOfFirstIndex = res.index("(")
+            numberOfSecondIndex = 0;
+            for i in range(2, 4):
+                if res[numberOfFirstIndex + i] == ":":
+                    firstScore = res[numberOfFirstIndex + 1:numberOfFirstIndex + i]
+                    numberOfSecondIndex = numberOfFirstIndex + i;
+                    break;
+                else:
+                    continue;
+            for j in range(2, 4):
+                if res[numberOfSecondIndex + i] == ",":
+                    secondScore = res[numberOfSecondIndex + 1:numberOfSecondIndex + i]
+                    break;
+                else:
+                    continue;
+            result.append((int)(firstScore));
+            result.append((int)(secondScore));
+
+
+
+            # if len(res) < 18:
+            #     result.append((int)(res[13]))
+            #     result.append((int)(res[15]))
+            # else:
+            #     if (res[18] != 'd' and res[18] != 'w' and res[18] != 'e' and res[18] != 'a'):
+            #         result.append((int)(res[18]))
+            #         result.append((int)(res[20]))
+            #     elif (res[18] == 'e' and res[13] != 'd' and res[13] != 'w' and res[13] != 'e' and res[13] != 'a'):
+            #         result.append((int)(res[13]))
+            #         result.append((int)(res[15]))
+            #     else:
+            #         result.append('')
         return result
 
     def get_odds_ttlg(self, tag):
